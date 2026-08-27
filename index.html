@@ -1,192 +1,51 @@
 <!doctype html>
 <html lang="zh-Hant">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1"
-    />
-    <title>yifly</title>
-    <meta
-      name="description"
-      content="yifly App 與連線助手，讓 iPhone 配對一次完成。"
-    />
-    <link rel="icon" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="progress"></div>
-    <nav>
-      <a class="brand" href="#top"
-        ><img src="favicon.svg" alt="yifly" /><b>yifly</b></a
-      >
-      <div>
-        <a href="#app">手機 App</a><a href="#steps">操作教學</a
-        ><a href="#assistant">連線助手</a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>yifly</title>
+  <meta name="description" content="yifly iPhone 定位工具。iOS 27 可直接在手機完成配對。">
+  <link rel="icon" href="yifly-app-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"></div>
+  <nav class="nav"><a class="brand" href="#top"><img src="yifly-app-icon.png" alt=""><b>yifly</b></a><div><a href="#ios27">iOS 27 教學</a><a href="#assistant">舊版 iOS</a></div></nav>
+
+  <main id="top">
+    <section class="hero shell">
+      <div class="hero-copy reveal"><span class="eyebrow">YIFLY FOR iPHONE</span><h1>想去哪裡，<br><em>就到哪裡。</em></h1><p>在地圖選擇位置，輕點一下即可開始。<br>iOS 27 可直接在 iPhone 完成設定，不需要電腦連線助手。</p><div class="actions"><a class="button primary" href="https://testflight.apple.com/join/Ur3Vc765" target="_blank" rel="noopener">取得 yifly App ↗</a><a class="button secondary" href="#ios27">查看 iOS 27 教學</a></div></div>
+      <div class="phone-wrap reveal"><div class="halo"></div><div class="phone"><div class="island"></div><img src="yifly-app-icon.png" alt="yifly"><h2>yifly</h2><small>選擇你想去的位置</small><div class="map"><i></i><span>台北市</span></div><button>飛到這裡</button></div></div>
+    </section>
+
+    <section class="ios27" id="ios27">
+      <div class="shell"><div class="section-head reveal"><span class="pill">iOS 27</span><h2>不需要連線助手。<br><em>直接在手機完成配對。</em></h2><p>yifly 會透過 iOS 27 的「與主機配對」功能，在這支 iPhone 上完成首次設定。</p></div>
+        <div class="steps">
+          <article class="reveal"><b>01</b><div class="icon">y</div><span>yifly App</span><h3>開始手機配對</h3><p>開啟 yifly，進入「設定 → 在此 iPhone 配對」，點選「開始配對」。</p></article>
+          <article class="reveal"><b>02</b><div class="icon">◎</div><span>允許權限</span><h3>保持 yifly 開啟</h3><p>允許本機網路、定位與通知權限。接著保持 yifly 開啟並前往系統設定。</p></article>
+          <article class="reveal"><b>03</b><div class="icon">⌁</div><span>iPhone 設定</span><h3>選擇與 yifly 配對</h3><p>開啟「設定 → 隱私權與安全性 → 開發者模式 → 與主機配對」，選擇 yifly。</p></article>
+          <article class="reveal"><b>04</b><div class="icon">6</div><span>安全驗證</span><h3>輸入六位數代碼</h3><p>先輸入 iPhone 解鎖密碼，再於下一個提示輸入 yifly 顯示的六位數代碼。</p></article>
+        </div>
+        <div class="done reveal"><div>✓</div><section><span>配對完成</span><h3>現在就能回到 yifly 選擇位置。</h3><p>配對資料會儲存在手機內；不需要下載或開啟電腦連線助手。</p></section></div>
       </div>
-    </nav>
-    <main id="top">
-      <section class="hero">
-        <div class="glow"></div>
-        <div class="copy reveal">
-          <span class="label">YIFLY FOR iPHONE</span>
-          <h1>先下載<br /><em>yifly App。</em></h1>
-          <p>
-            在 iPhone 安裝 yifly，接著依照下方教學完成設定。<br />簡單幾步，就能開始連線。
-          </p>
-          <div class="buttons">
-            <a
-              class="button dark"
-              href="https://testflight.apple.com/join/Ur3Vc765"
-              target="_blank"
-              rel="noopener"
-              >取得 yifly App ↗</a
-            ><a class="button light" href="#steps">查看操作教學</a>
-          </div>
-        </div>
-        <div class="ecosystem reveal">
-          <div class="phone">
-            <i></i><img src="favicon.svg" alt="yifly" /><b>yifly</b
-            ><small>掃描並連線</small><strong>⌗</strong>
-          </div>
-          <div class="signal"><i></i><i></i><i></i></div>
-          <div class="desktop">
-            <header><i></i><i></i><i></i></header>
-            <img src="favicon.svg" alt="yifly" /><b>yifly 連線助手</b>
-            <p>iPhone 已連接</p>
-            <strong>✓ 配對完成</strong>
-          </div>
-        </div>
-      </section>
-      <section class="product app" id="app">
-        <div class="visual sticky">
-          <div class="orb"></div>
-          <div class="app-phone reveal">
-            <i></i><img src="favicon.svg" alt="yifly App" />
-            <h3>yifly</h3>
-            <p>掃描 QR Code<br />立即完成配對</p>
-            <div class="scanner"><span></span></div>
-          </div>
-        </div>
-        <div class="product-copy reveal">
-          <span class="label">手機 App</span>
-          <h2>你的 iPhone，<br /><em>使用 yifly。</em></h2>
-          <p>
-            先在手機安裝並開啟 yifly。完成後往下看操作教學，再準備電腦連線助手。
-          </p>
-          <ul>
-            <li><b>01</b>取得並安裝 yifly</li>
-            <li><b>02</b>第一次開啟時允許相機權限</li>
-            <li><b>03</b>準備掃描連線助手的 QR Code</li>
-          </ul>
-          <a
-            class="button white"
-            href="https://testflight.apple.com/join/Ur3Vc765"
-            target="_blank"
-            rel="noopener"
-            >取得 yifly ↗</a
-          >
-        </div>
-      </section>
-      <section class="product assistant" id="assistant">
-        <div class="product-copy reveal">
-          <span class="label">接著準備電腦</span>
-          <h2>yifly<br /><em>連線助手。</em></h2>
-          <p>
-            完成手機 App 的準備後，在 Mac 或 Windows 接上
-            iPhone。連線助手會安全配對並產生 QR Code。
-          </p>
-          <div class="buttons">
-            <a class="button blue" href="Yifly連線助手.dmg" download
-              >下載 macOS 版</a
-            ><a class="button light" href="Yifly連線助手.exe" download
-              >下載 Windows 版</a
-            >
-          </div>
-          <small>下載檔名：Yifly連線助手</small>
-        </div>
-        <div class="stage sticky reveal">
-          <div class="orbit"></div>
-          <div class="window">
-            <header><i></i><i></i><i></i><b>yifly 連線助手</b></header>
-            <article>
-              <img src="favicon.svg" alt="yifly" /><span
-                >YIFLY CONNECTION ASSISTANT</span
-              >
-              <h3>連接你的 iPhone</h3>
-              <p>使用 USB 連接並保持解鎖</p>
-              <div class="device">
-                <strong>⌁</strong
-                ><b>iPhone<small>已連接 · 可以開始配對</small></b
-                ><i>✓</i>
-              </div>
-              <button>產生 QR Code</button>
-            </article>
-          </div>
-        </div>
-      </section>
-      <section class="flow" id="steps">
-        <div class="flow-title reveal">
-          <span class="label">yifly App 操作教學</span>
-          <h2>打開 App。<br /><em>照著畫面完成。</em></h2>
-          <p>先完成手機端的準備，再往下下載電腦連線助手。</p>
-        </div>
-        <div class="timeline">
-          <article class="reveal">
-            <b>01</b><i>↓</i><span>安裝</span>
-            <h3>取得 yifly</h3>
-            <p>點選「取得 yifly App」，依照 iPhone 畫面完成安裝。</p>
-          </article>
-          <article class="reveal">
-            <b>02</b><i>◎</i><span>權限</span>
-            <h3>允許使用相機</h3>
-            <p>第一次開啟 yifly 時，允許相機權限以便掃描 QR Code。</p>
-          </article>
-          <article class="reveal">
-            <b>03</b><i>⌗</i><span>掃描</span>
-            <h3>對準 QR Code</h3>
-            <p>電腦連線助手顯示 QR Code 後，在 yifly App 內對準掃描。</p>
-          </article>
-          <article class="reveal">
-            <b>04</b><i>✓</i><span>完成</span>
-            <h3>確認連線成功</h3>
-            <p>手機顯示成功後即可開始使用；不需要再輸入任何指令。</p>
-          </article>
-        </div>
-      </section>
-      <section class="final">
-        <div class="reveal">
-          <img src="favicon.svg" alt="yifly" /><span>準備好了嗎？</span>
-          <h2>讓 yifly<br />連上你的 iPhone。</h2>
-          <div class="buttons">
-            <a
-              class="button dark"
-              href="https://testflight.apple.com/join/Ur3Vc765"
-              target="_blank"
-              rel="noopener"
-              >取得 yifly</a
-            ><a class="button light" href="#assistant">下載連線助手</a>
-          </div>
-        </div>
-      </section>
-    </main>
-    <footer>© 2026 yifly</footer>
-    <script>
-      const o = new IntersectionObserver(
-        (e) =>
-          e.forEach((x) => {
-            if (x.isIntersecting) x.target.classList.add("visible");
-          }),
-        { threshold: 0.15 },
-      );
-      document.querySelectorAll(".reveal").forEach((x) => o.observe(x));
-      const s = () =>
-        document.documentElement.style.setProperty(
-          "--p",
-          scrollY / (document.documentElement.scrollHeight - innerHeight),
-        );
-      addEventListener("scroll", s, { passive: true });
-      s();
-    </script>
-  </body>
+    </section>
+
+    <section class="use shell"><div class="section-head reveal"><span class="eyebrow">開始使用</span><h2>配對完成後，<br><em>三步就能改變位置。</em></h2></div><div class="use-grid"><article class="reveal"><span>1</span><h3>搜尋地點</h3><p>輸入地址、景點或直接在地圖上放置圖釘。</p></article><article class="reveal"><span>2</span><h3>選擇模式</h3><p>使用「飛到這裡」快速移動，或設定路線模擬行走。</p></article><article class="reveal"><span>3</span><h3>開始定位</h3><p>確認位置後啟動；需要恢復時可隨時停止模擬。</p></article></div></section>
+
+    <section class="assistant" id="assistant"><div class="shell assistant-grid"><div class="assistant-copy reveal"><span class="pill muted">iOS 18–26</span><h2>舊版 iOS 才需要<br><em>yifly 連線助手。</em></h2><p>若你的 iPhone 尚未升級至 iOS 27，首次配對需使用 Mac 或 Windows 連接 iPhone，產生 QR Code 後再用 yifly 掃描。</p><div class="actions"><a class="button primary" href="Yifly連線助手.dmg" download>下載 macOS 版</a><a class="button secondary" href="Yifly連線助手.exe" download>下載 Windows 版</a></div><small>下載檔名皆為「Yifly連線助手」</small></div>
+        <div class="assistant-card reveal"><header><i></i><i></i><i></i><b>yifly 連線助手</b></header><div><img src="yifly-app-icon.png" alt=""><h3>連接你的 iPhone</h3><p>使用 USB 連接、解鎖並點選「信任」</p><ol><li><b>1</b>開啟連線助手</li><li><b>2</b>USB 接上 iPhone</li><li><b>3</b>產生並掃描 QR Code</li></ol></div></div>
+      </div></section>
+
+    <section class="cta shell reveal"><img src="yifly-app-icon.png" alt=""><span>yifly</span><h2>從手機開始。<br>前往你的下一站。</h2><a class="button primary" href="https://testflight.apple.com/join/Ur3Vc765" target="_blank" rel="noopener">取得 yifly App ↗</a></section>
+  </main>
+  <footer>© 2026 yifly</footer>
+  <script>
+    const items=document.querySelectorAll('.reveal');
+    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target)}}),{threshold:.08,rootMargin:'0px 0px -30px'});
+    items.forEach(item=>observer.observe(item));
+    const update=()=>document.documentElement.style.setProperty('--progress',Math.min(1,scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight)));
+    addEventListener('scroll',update,{passive:true});update();
+  </script>
+</body>
 </html>
