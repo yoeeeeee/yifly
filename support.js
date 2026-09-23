@@ -34,6 +34,21 @@ function selectAmount(amount) {
 }
 amountButtons.forEach((button) => button.addEventListener("click", () => selectAmount(button.dataset.amount)));
 customAmount.addEventListener("input", chosenAmount);
+
+// The iOS app opens this page with ?amount=50 (or another integer), so the
+// supporter lands on the exact amount they selected in the app.
+const requestedAmount = Number(new URLSearchParams(window.location.search).get("amount"));
+if (Number.isInteger(requestedAmount) && requestedAmount >= minimumAmount) {
+  const preset = amountButtons.find((button) => Number(button.dataset.amount) === requestedAmount);
+  if (preset) {
+    selectAmount(preset.dataset.amount);
+  } else {
+    selectAmount("custom");
+    customAmount.value = String(requestedAmount);
+    chosenAmount();
+  }
+}
+
 function showToast() { toast.hidden = false; toast.focus(); window.clearTimeout(showToast.timeout); showToast.timeout = window.setTimeout(() => { toast.hidden = true; }, 5000); }
 async function handleSponsor() {
   const amount = chosenAmount();
