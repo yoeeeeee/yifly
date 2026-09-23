@@ -7,8 +7,7 @@
  * hosting, so no payment secret may ever be placed in this file or the browser.
  */
 export const supportContact = {
-  email: "",
-  // TODO: Set the official yifly support email when it is available.
+  email: "neroprect@gmail.com",
 };
 
 export async function startEcpayPayment({ amount, description }) {
