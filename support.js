@@ -9,6 +9,7 @@ const sponsorButton = document.querySelector("#sponsor-button");
 const sponsorForm = document.querySelector("#sponsor-form");
 const toast = document.querySelector("#payment-toast");
 const contact = document.querySelector("#support-contact");
+const energyMessage = document.querySelector("#energy-message");
 let selectedAmount = 100;
 let usingCustomAmount = false;
 
@@ -23,6 +24,12 @@ function selectAmount(amount) {
   usingCustomAmount = amount === "custom";
   amountButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.amount === String(amount))));
   customWrap.hidden = !usingCustomAmount;
+  const selectedButton = amountButtons.find((button) => button.dataset.amount === String(amount));
+  energyMessage.classList.add("changing");
+  window.setTimeout(() => {
+    energyMessage.textContent = selectedButton.dataset.message;
+    energyMessage.classList.remove("changing");
+  }, 120);
   if (usingCustomAmount) customAmount.focus(); else { selectedAmount = Number(amount); setError(); }
 }
 amountButtons.forEach((button) => button.addEventListener("click", () => selectAmount(button.dataset.amount)));
