@@ -1,0 +1,12 @@
+
+# Local / generated
+node_modules/
+.next/
+.wrangler/
+dist/
+next-env.d.ts
+.env
+.env.*
+.DS_Store
+
+github-pages/

@@ -1,6 +1,7 @@
 import { startEcpayPayment, supportContact } from "./payment.js";
 
 const minimumAmount = 50;
+const maximumAmount = 10000;
 const amountButtons = [...document.querySelectorAll("[data-amount]")];
 const customAmount = document.querySelector("#custom-amount");
 const customWrap = document.querySelector("#custom-amount-wrap");
@@ -17,7 +18,8 @@ function setError(message = "") { amountError.textContent = message; customAmoun
 function chosenAmount() {
   if (!usingCustomAmount) return selectedAmount;
   const amount = Number(customAmount.value);
-  if (!Number.isInteger(amount) || amount < minimumAmount) { setError(`請輸入至少 NT$${minimumAmount} 的整數金額。`); return null; }
+  if (!Number.isInteger(amount) || amount < minimumAmount || amount > maximumAmount) { setError(`請輸入 NT$${minimumAmount} 至 NT$${maximumAmount} 的整數金額。`); return null; }
+  selectedAmount = amount;
   setError(); return amount;
 }
 function selectAmount(amount) {
@@ -34,6 +36,31 @@ function selectAmount(amount) {
 }
 amountButtons.forEach((button) => button.addEventListener("click", () => selectAmount(button.dataset.amount)));
 customAmount.addEventListener("input", chosenAmount);
+
+function initializeAmountFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const amountParam = params.get("amount");
+  const plan = params.get("plan");
+  // `once` is the only plan today. Keep reading it so future plans can extend
+  // this initialization without creating a separate amount-selection path.
+  if (plan && plan !== "once") return;
+  if (!amountParam || !/^\d+$/.test(amountParam)) return;
+
+  const requestedAmount = Number(amountParam);
+  if (!Number.isInteger(requestedAmount) || requestedAmount < minimumAmount || requestedAmount > maximumAmount) return;
+
+  const fixedChoice = amountButtons.find((button) => Number(button.dataset.amount) === requestedAmount);
+  if (fixedChoice) {
+    selectAmount(fixedChoice.dataset.amount);
+    return;
+  }
+
+  selectAmount("custom");
+  customAmount.value = String(requestedAmount);
+  chosenAmount();
+}
+
+initializeAmountFromUrl();
 function showToast() { toast.hidden = false; toast.focus(); window.clearTimeout(showToast.timeout); showToast.timeout = window.setTimeout(() => { toast.hidden = true; }, 5000); }
 async function handleSponsor() {
   const amount = chosenAmount();

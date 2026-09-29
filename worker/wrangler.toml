@@ -1,0 +1,11 @@
+name = "yifly-ecpay"
+main = "src/index.js"
+compatibility_date = "2026-09-29"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "yifly-payment"
+database_id = "5b4e5282-71e8-4ceb-933d-abf0a10c5393"
+
+[vars]
+PUBLIC_SITE_ORIGIN = "https://yoeeeeee.github.io"
