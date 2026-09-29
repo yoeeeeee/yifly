@@ -16,7 +16,9 @@ export const paymentApiOrigin = "https://yifly-ecpay.yoeee.workers.dev";
 export async function startEcpayPayment({ amount, description }) {
   void description;
   if (!paymentApiOrigin) return { status: "not_ready" };
-  const response = await fetch(`${paymentApiOrigin}/api/payment/create`, {
+  // The website's public support flow deliberately creates an anonymous order.
+  // App payments use /api/payment/create with a verified Firebase ID token.
+  const response = await fetch(`${paymentApiOrigin}/api/payment/create-public`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount }),
   });
   if (!response.ok) throw new Error("Unable to create payment");

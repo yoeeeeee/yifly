@@ -6,6 +6,8 @@ compatibility_date = "2026-09-29"
 binding = "DB"
 database_name = "yifly-payment"
 database_id = "5b4e5282-71e8-4ceb-933d-abf0a10c5393"
+migrations_dir = "migrations"
 
 [vars]
 PUBLIC_SITE_ORIGIN = "https://yoeeeeee.github.io"
+FIREBASE_PROJECT_ID = "yifit-506416"
