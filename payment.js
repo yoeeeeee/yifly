@@ -10,9 +10,15 @@ export const supportContact = {
   email: "neroprect@gmail.com",
 };
 
+// Set only after deploying the Worker. This URL is public; secrets stay in Worker Secrets.
+export const paymentApiOrigin = "https://yifly-ecpay.yoeee.workers.dev";
+
 export async function startEcpayPayment({ amount, description }) {
-  void amount;
   void description;
-  // TODO: Request a signed payment session from a secure ECPay backend here.
-  return { status: "not_ready" };
+  if (!paymentApiOrigin) return { status: "not_ready" };
+  const response = await fetch(`${paymentApiOrigin}/api/payment/create`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount }),
+  });
+  if (!response.ok) throw new Error("Unable to create payment");
+  return response.json();
 }
