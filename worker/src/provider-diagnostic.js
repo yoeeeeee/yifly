@@ -1,7 +1,7 @@
 // TEMPORARY STAGE DIAGNOSTIC. Remove after investigation. No database writes.
 const target = 'https://payment-stage.ecpay.com.tw/Cashier/QueryCreditCardPeriodInfo';
 export function stageCredentialCheck(env) {
-  if(env.ECPAY_ENV!=='stage')return null;
+  if(env.ECPAY_ENV!=='stage'||env.ECPAY_SINGLE_ENV==='production')return null;
   // Public ECPay Stage test fixture, NOT production credentials.
   // Never return or log actual binding values. Remove with this temporary diagnostic.
   const MerchantID=env.ECPAY_MERCHANT_ID==='3002607'?'MATCH':'MISMATCH';
@@ -64,7 +64,7 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
   const requestId=crypto.randomUUID().slice(0,8);
   const log=(checkpoint,state,details={})=>{if(env.ECPAY_ENV==='stage')console.log('stage diagnostic',{requestId,checkpoint,state,...details})};
   const reject=(reason,body,status)=>{log('DIAG_PROVIDER_QUERY','NOT_STARTED');log('DIAG_REJECT',reason);return reply(body,status,env)};
-  if(env.ECPAY_ENV!=='stage')return reply({error:'not found'},404,env);
+  if(env.ECPAY_ENV!=='stage'||env.ECPAY_SINGLE_ENV==='production')return reply({error:'not found'},404,env);
   log('DIAG_REQUEST_RECEIVED','RECEIVED');log('DIAG_STAGE_CHECK','PASS');
   let profile;try{profile=await verify(req,env);log('DIAG_FIREBASE_AUTH','SUCCESS')}catch{log('DIAG_FIREBASE_AUTH','FAILED');return reject('FIREBASE_AUTH_FAILED',{error:'unauthorized'},401)}
   log('STAGE_CREDENTIAL_CHECK','CHECKED',stageCredentialCheck(env));

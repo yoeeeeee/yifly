@@ -1,5 +1,6 @@
 export function stageFaultEligible(env, subscriptionId) {
   return env.ECPAY_ENV === 'stage'
+    && env.ECPAY_SINGLE_ENV !== 'production'
     && env.ECPAY_STAGE_SIMULATE_CANCEL_RESPONSE_LOSS === 'true'
     && typeof env.ECPAY_STAGE_FAULT_SUBSCRIPTION_ID === 'string'
     && env.ECPAY_STAGE_FAULT_SUBSCRIPTION_ID === subscriptionId;
