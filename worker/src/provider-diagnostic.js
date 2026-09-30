@@ -81,7 +81,8 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
   try {
     const parsed=new URL(target);
     if(parsed.protocol!=='https:'||parsed.hostname!=='payment-stage.ecpay.com.tw'||parsed.pathname!=='/Cashier/QueryCreditCardPeriodInfo'||parsed.search||parsed.hash||target.trim()!==target)throw new TypeError('Invalid URL');
-    params={MerchantID:env.ECPAY_MERCHANT_ID,MerchantTradeNo:row.merchant_trade_no,TimeStamp:Math.floor(Date.now()/1000)};
+    // TEMPORARY Stage compatibility test: sign and send the same empty PlatformID.
+    params={MerchantID:env.ECPAY_MERCHANT_ID,MerchantTradeNo:row.merchant_trade_no,PlatformID:'',TimeStamp:Math.floor(Date.now()/1000)};
     log('QUERY_BUILD_OK','OK');
   }catch(error){return preparationFailure(error,'QUERY_BUILD')}
   log('QUERY_SIGN_START','STARTED');
@@ -92,7 +93,7 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
     log('BODY_PARAMS_CREATE_START','STARTED');
     const form=new URLSearchParams();log('BODY_PARAMS_CREATE_OK','OK');
     constructionStage='BODY_PARAMS_APPEND';log('BODY_PARAMS_APPEND_START','STARTED');
-    for(const key of ['MerchantID','MerchantTradeNo','TimeStamp','CheckMacValue']) {
+    for(const key of ['MerchantID','MerchantTradeNo','PlatformID','TimeStamp','CheckMacValue']) {
       if(params[key]===undefined||params[key]===null)throw new TypeError('Invalid request body');
       form.set(key,String(params[key]));
     }
