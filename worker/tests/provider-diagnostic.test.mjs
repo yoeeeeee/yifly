@@ -24,3 +24,23 @@ for(const sensitive of ['secret-card','secret-mac','secret-auth','Card6No','Chec
 assert.equal(safeProviderResult({...provider,MerchantTradeNo:'other'},row,env).providerOrderFound,'unknown');
 assert.equal(safeProviderResult({RtnCode:999},row,env).initialAuthorization,'UNKNOWN');
 console.log('provider diagnostic tests passed (SELECT-only mock rejects writes)');
+for(const [body,type,status,expected] of [
+  [JSON.stringify(provider),'application/json',200,'PROVIDER_RESPONSE'],
+  [JSON.stringify(provider),'text/html',200,'PROVIDER_RESPONSE'],
+  ['0|訂單不存在','text/plain',200,'ORDER_NOT_FOUND'],
+  ['RtnCode=0&RtnMsg=parameter+error','application/x-www-form-urlencoded',200,'PARAMETER_ERROR'],
+  ['0|CheckMacValue error','text/plain',200,'MAC_ERROR'],
+  ['bad gateway','text/plain',502,'HTTP_ERROR'],
+  [JSON.stringify(provider),'application/octet-stream',200,'CONTENT_TYPE_ERROR'],
+  ['<html>secret-card secret-mac</html>','text/html',200,'PARSE_ERROR']
+]) {
+  const res=await providerDiagnostic(new Request(url),env,{...deps,providerFetch:async()=>new Response(body,{status,headers:{'content-type':type}})});
+  const data=await res.json();assert.equal(data.classification,expected);
+  if(expected==='ORDER_NOT_FOUND')assert.equal(data.providerOrderFound,false);
+  assert.ok(!JSON.stringify(data).includes('secret-'));
+}
+for(const [name,expected] of [['TimeoutError','TIMEOUT'],['TypeError','NETWORK_ERROR']]) {
+  const res=await providerDiagnostic(new Request(url),env,{...deps,providerFetch:async()=>{const e=new Error('secret-error');e.name=name;throw e}});
+  const data=await res.json();assert.equal(data.classification,expected);assert.ok(!JSON.stringify(data).includes('secret-error'));
+}
+console.log('diagnostic error classification tests passed');

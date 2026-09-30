@@ -14,3 +14,12 @@ ExecStatus: 0 terminated, 1 executing, 2 completed.
 
 Do not paste Firebase tokens into chat. Use an existing authenticated client only.
 TestFlight 130 has no diagnostic action; returning from checkout does not invoke this API.
+
+Diagnostic transport failures return HTTP 200 with the existing UNKNOWN result
+shape plus safe classification fields, compatible with TestFlight 131. The app
+ignores extra fields; detailed classifications are visible in `wrangler tail`.
+Only allowlisted provider messages are returned/logged; arbitrary text is never echoed.
+Recognized order-not-found messages return `providerOrderFound: false`.
+JSON bodies (including official text/html media type), form encoded errors and
+single-line code|message errors are parsed; malformed HTML is not treated as success.
+Unrecognized failures remain UNKNOWN rather than being guessed as order absence.
