@@ -1,5 +1,19 @@
 // TEMPORARY STAGE DIAGNOSTIC. Remove after investigation. No database writes.
 const target = 'https://payment-stage.ecpay.com.tw/Cashier/QueryCreditCardPeriodInfo';
+export function safeNetworkError(error) {
+  const name=['TypeError','Error','TimeoutError','AbortError','NetworkError','SyntaxError'].includes(error?.name)?error.name:'OtherError';
+  const message=typeof error?.message==='string'?error.message.toLowerCase():'';
+  const code=typeof error?.cause?.code==='string'?error.cause.code:'';
+  // Inspect internally; never echo message/cause/stack or arbitrary exception names.
+  const category=['TimeoutError','AbortError'].includes(name)?'TIMEOUT':
+    /dns|name resolution|enotfound|eai_again/.test(message)||['ENOTFOUND','EAI_AGAIN'].includes(code)?'DNS_FAILURE':
+    /tls|ssl|certificate/.test(message)||code.startsWith('ERR_TLS_')?'TLS_FAILURE':
+    /connection reset|econnreset/.test(message)||code==='ECONNRESET'?'CONNECTION_RESET':
+    /connection refused|econnrefused/.test(message)||code==='ECONNREFUSED'?'CONNECTION_REFUSED':
+    /invalid url|url is invalid/.test(message)?'INVALID_URL':
+    /fetch failed|failed to fetch/.test(message)?'FETCH_FAILED':'OTHER_NETWORK_FAILURE';
+  return {exceptionName:name,networkCategory:category};
+}
 const integer = value => value !== undefined && value !== null && value !== '' && Number.isSafeInteger(Number(value)) ? Number(value) : null;
 const emptyResult=()=>({providerOrderFound:'unknown',recurringContract:'UNKNOWN',initialAuthorization:'UNKNOWN',totalSuccessTimes:null,totalSuccessAmount:null,execStatus:null,execLog:[]});
 export function diagnosticMessage(value) {
@@ -37,8 +51,11 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
   const url=new URL(req.url);
   if(url.search || req.headers.get('content-length') && req.headers.get('content-length')!=='0')return reply({error:'parameters not allowed'},400,env);
   const limited=limiter(req,env,`provider-diagnostic:${profile.uid}`,3,60000);if(limited)return limited;
-  const row=await env.DB.prepare('SELECT merchant_trade_no,amount FROM subscriptions WHERE firebase_uid=? ORDER BY created_at DESC LIMIT 1').bind(profile.uid).first();
-  if(!row)return reply({error:'no subscription'},404,env);
+  const subscriptionId=env.ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID;
+  if(typeof subscriptionId!=='string'||!/^sub_[A-Za-z0-9]+$/.test(subscriptionId))return reply({error:'diagnostic target not configured'},503,env);
+  const row=await env.DB.prepare('SELECT merchant_trade_no,amount,status FROM subscriptions WHERE id=? AND firebase_uid=?').bind(subscriptionId,profile.uid).first();
+  if(!row)return reply({error:'diagnostic target unavailable'},404,env);
+  if(row.status!=='pending')return reply({error:'diagnostic target is not pending'},409,env);
   const params={MerchantID:env.ECPAY_MERCHANT_ID,MerchantTradeNo:row.merchant_trade_no,TimeStamp:Math.floor(Date.now()/1000)};
   params.CheckMacValue=await mac(params,env);
   try {
@@ -57,7 +74,7 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
     return reply({...safe,...info,classification},200,env);
   }catch(error){
     const timeout=error?.name==='TimeoutError'||error?.name==='AbortError';
-    const info={providerHttpStatus:null,providerContentType:null,rtnCode:null,rtnMsg:null,parseFailure:false,networkFailure:!timeout,timeout,orderNotFound:false,classification:timeout?'TIMEOUT':'NETWORK_ERROR'};
+    const info={providerHttpStatus:null,providerContentType:null,rtnCode:null,rtnMsg:null,parseFailure:false,networkFailure:!timeout,timeout,orderNotFound:false,classification:timeout?'TIMEOUT':'NETWORK_ERROR',...safeNetworkError(error)};
     console.log('stage provider diagnostic',{merchantTradeNo:row.merchant_trade_no,...info});
     return reply({...emptyResult(),...info},200,env);
   }

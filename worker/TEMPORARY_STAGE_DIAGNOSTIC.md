@@ -2,7 +2,10 @@
 
 Remove `GET /api/me/subscription/provider-diagnostic` after investigation.
 Requires a verified Firebase bearer token; Stage only. No client parameters.
-Selects the authenticated user's latest subscription. No D1 writes, profile upsert,
+Selects only the pending subscription specified by the Stage Secret
+`ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID`, using `id=? AND firebase_uid=?`.
+Missing target fails closed; another UID or non-pending state cannot query it.
+No D1 writes, profile upsert,
 cancel, retry, charge, or fault injection. Three queries per minute per UID/IP.
 Uses the existing MAC implementation and fixed Stage QueryCreditCardPeriodInfo HTTPS
 endpoint, rejects redirects and correlates merchant/trade/amount/period fields.
@@ -23,3 +26,5 @@ Recognized order-not-found messages return `providerOrderFound: false`.
 JSON bodies (including official text/html media type), form encoded errors and
 single-line code|message errors are parsed; malformed HTML is not treated as success.
 Unrecognized failures remain UNKNOWN rather than being guessed as order absence.
+Network logs contain only allowlisted exception names and categorical DNS/TLS/reset/
+refused/invalid-URL/fetch-failed/other classifications, never exception message or stack.
