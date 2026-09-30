@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import worker from '../src/index.js';
-import {providerDiagnostic,safeProviderResult,safeNetworkError} from '../src/provider-diagnostic.js';
+import {providerDiagnostic,safeProviderResult,safeNetworkError,stageCredentialCheck} from '../src/provider-diagnostic.js';
 const env={ECPAY_ENV:'stage',ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID:'sub_fixture',ECPAY_MERCHANT_ID:'fixture',ECPAY_HASH_KEY:'fixture-key',ECPAY_HASH_IV:'fixture-iv'};
 const url='https://worker.invalid/api/me/subscription/provider-diagnostic';
 for(const authorization of [null,'Bearer forged.token.signature']) {
@@ -88,3 +88,26 @@ for(const [message,category] of [['Failed to parse URL','INVALID_URL'],['Invalid
   assert.ok(!JSON.stringify(safeNetworkError(new TypeError(message))).includes('secret'));
 }
 console.log('fetch construction phases and safe TypeError tests passed');
+// Public official Stage fixture; never use real deployment Secrets in these tests.
+const publicStage={ECPAY_ENV:'stage',ECPAY_MERCHANT_ID:'3002607',ECPAY_HASH_KEY:'pwFHCqoQZGmho4w6',ECPAY_HASH_IV:'EkRm7iFT261dpevs'};
+assert.equal(stageCredentialCheck({...publicStage,ECPAY_ENV:'production'}),null);
+assert.deepEqual(stageCredentialCheck(publicStage),{MerchantID:'MATCH',HashKey:'MATCH',HashIV:'MATCH',CredentialSetConsistent:'YES'});
+for(const [binding,field] of [['ECPAY_MERCHANT_ID','MerchantID'],['ECPAY_HASH_KEY','HashKey'],['ECPAY_HASH_IV','HashIV']]) {
+  const result=stageCredentialCheck({...publicStage,[binding]:'private-mismatch-fixture'});
+  assert.equal(result[field],'MISMATCH');assert.equal(result.CredentialSetConsistent,'NO');
+  assert.equal(Object.values(result).filter(value=>value==='MISMATCH').length,1);
+  for(const sensitive of ['private-mismatch-fixture',publicStage.ECPAY_MERCHANT_ID,publicStage.ECPAY_HASH_KEY,publicStage.ECPAY_HASH_IV])assert.ok(!JSON.stringify(result).includes(sensitive));
+}
+assert.deepEqual(stageCredentialCheck({...publicStage,ECPAY_HASH_KEY:'other-key',ECPAY_HASH_IV:'other-iv'}),{MerchantID:'MATCH',HashKey:'MISMATCH',HashIV:'MISMATCH',CredentialSetConsistent:'NO'});
+const credentialLogs=[];console.log=(...args)=>credentialLogs.push(args);
+try {
+  await providerDiagnostic(new Request(url),{...env,...publicStage},{...deps,limiter:()=>new Response('{}',{status:429})});
+  const checkpoint=credentialLogs.map(args=>args[1]).find(log=>log?.checkpoint==='STAGE_CREDENTIAL_CHECK');
+  assert.equal(checkpoint.CredentialSetConsistent,'YES');
+  assert.ok(!JSON.stringify(credentialLogs).includes(publicStage.ECPAY_HASH_KEY));
+  assert.ok(!JSON.stringify(credentialLogs).includes(publicStage.ECPAY_HASH_IV));
+  credentialLogs.length=0;
+  await providerDiagnostic(new Request(url),env,{...deps,verify:async()=>{throw Error('token')}});
+  assert.ok(!credentialLogs.some(args=>args[1]?.checkpoint==='STAGE_CREDENTIAL_CHECK'));
+}finally{console.log=originalLog}
+console.log('Stage credential match/mismatch, auth gating and safe logging tests passed');
