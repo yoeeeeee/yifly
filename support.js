@@ -47,7 +47,8 @@ async function handleSponsor() {
   }
   sponsorButton.disabled = true;
   try {
-    const payment = await startEcpayPayment({ amount, description: "支持 yifly 開發" });
+    const planId = usingCustomAmount ? undefined : `support_${amount}`;
+    const payment = await startEcpayPayment({ amount, planId, description: "支持 yifly 開發" });
     if (payment.status === "not_ready") { showToast(); return; }
     const form = document.createElement("form"); form.method = "POST"; form.action = payment.action;
     Object.entries(payment.params).forEach(([name, value]) => { const input = document.createElement("input"); input.type = "hidden"; input.name = name; input.value = value; form.append(input); });
