@@ -3,7 +3,8 @@
 Remove `GET /api/me/subscription/provider-diagnostic` after investigation.
 Requires a verified Firebase bearer token; Stage only. No client parameters.
 Selects only the pending subscription specified by the Stage Secret
-`ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID`, using `id=? AND firebase_uid=?`.
+`ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID`, using a SELECT by `id=?`, then separate
+existence, verified UID ownership, and pending checks. No provider call before all pass.
 Missing target fails closed; another UID or non-pending state cannot query it.
 No D1 writes, profile upsert,
 cancel, retry, charge, or fault injection. Three queries per minute per UID/IP.
@@ -28,3 +29,7 @@ single-line code|message errors are parsed; malformed HTML is not treated as suc
 Unrecognized failures remain UNKNOWN rather than being guessed as order absence.
 Network logs contain only allowlisted exception names and categorical DNS/TLS/reset/
 refused/invalid-URL/fetch-failed/other classifications, never exception message or stack.
+Stage requests have an ephemeral request ID on every checkpoint and rejection log.
+No UID, subscription ID, MerchantTradeNo, TradeNo, request payload or credentials
+are logged. Non-Stage is rejected as NOT_STAGE (HTTP 404) silently, because logging
+is strictly Stage-only. Stage early returns include exact safe rejection reason.

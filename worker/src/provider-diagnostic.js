@@ -46,19 +46,33 @@ export function safeProviderResult(result, row, env) {
     execLog:Array.isArray(result.ExecLog)?result.ExecLog.slice(0,100).map((item,index)=>({index:index+1,RtnCode:integer(item?.RtnCode),Amount:integer(item?.amount),ProcessDate:typeof item?.process_date==='string'?item.process_date.slice(0,30):null,hasTradeNo:typeof item?.TradeNo==='string'&&item.TradeNo.length>0})):[]};
 }
 export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,providerFetch=fetch}) {
+  const requestId=crypto.randomUUID().slice(0,8);
+  const log=(checkpoint,state,details={})=>{if(env.ECPAY_ENV==='stage')console.log('stage diagnostic',{requestId,checkpoint,state,...details})};
+  const reject=(reason,body,status)=>{log('DIAG_PROVIDER_QUERY','NOT_STARTED');log('DIAG_REJECT',reason);return reply(body,status,env)};
   if(env.ECPAY_ENV!=='stage')return reply({error:'not found'},404,env);
-  let profile;try{profile=await verify(req,env)}catch{return reply({error:'unauthorized'},401,env)}
+  log('DIAG_REQUEST_RECEIVED','RECEIVED');log('DIAG_STAGE_CHECK','PASS');
+  let profile;try{profile=await verify(req,env);log('DIAG_FIREBASE_AUTH','SUCCESS')}catch{log('DIAG_FIREBASE_AUTH','FAILED');return reject('FIREBASE_AUTH_FAILED',{error:'unauthorized'},401)}
   const url=new URL(req.url);
-  if(url.search || req.headers.get('content-length') && req.headers.get('content-length')!=='0')return reply({error:'parameters not allowed'},400,env);
-  const limited=limiter(req,env,`provider-diagnostic:${profile.uid}`,3,60000);if(limited)return limited;
+  if(url.search || req.headers.get('content-length') && req.headers.get('content-length')!=='0')return reject('OTHER',{error:'parameters not allowed'},400);
+  const limited=limiter(req,env,`provider-diagnostic:${profile.uid}`,3,60000);if(limited){log('DIAG_PROVIDER_QUERY','NOT_STARTED');log('DIAG_REJECT','OTHER',{category:'RATE_LIMITED'});return limited;}
   const subscriptionId=env.ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID;
-  if(typeof subscriptionId!=='string'||!/^sub_[A-Za-z0-9]+$/.test(subscriptionId))return reply({error:'diagnostic target not configured'},503,env);
-  const row=await env.DB.prepare('SELECT merchant_trade_no,amount,status FROM subscriptions WHERE id=? AND firebase_uid=?').bind(subscriptionId,profile.uid).first();
-  if(!row)return reply({error:'diagnostic target unavailable'},404,env);
-  if(row.status!=='pending')return reply({error:'diagnostic target is not pending'},409,env);
+  const targetPresent=typeof subscriptionId==='string'&&/^sub_[A-Za-z0-9]+$/.test(subscriptionId);
+  log('DIAG_TARGET_SECRET',targetPresent?'PRESENT':'MISSING');
+  if(!targetPresent)return reject('TARGET_SECRET_MISSING',{error:'diagnostic target not configured'},503);
+  let row;
+  try{row=await env.DB.prepare('SELECT firebase_uid,merchant_trade_no,amount,status FROM subscriptions WHERE id=?').bind(subscriptionId).first()}
+  catch{ return reject('OTHER',{error:'diagnostic unavailable'},503) }
+  log('DIAG_TARGET_LOOKUP',row?'FOUND':'NOT_FOUND');
+  if(!row)return reject('TARGET_NOT_FOUND',{error:'diagnostic target unavailable'},404);
+  log('DIAG_UID_OWNERSHIP',row.firebase_uid===profile.uid?'MATCH':'MISMATCH');
+  if(row.firebase_uid!==profile.uid)return reject('UID_MISMATCH',{error:'diagnostic target unavailable'},404);
+  log('DIAG_SUBSCRIPTION_STATUS',row.status==='pending'?'PENDING':'OTHER');
+  if(row.status!=='pending')return reject('STATUS_NOT_PENDING',{error:'diagnostic target is not pending'},409);
+  if(!env.ECPAY_MERCHANT_ID||!env.ECPAY_HASH_KEY||!env.ECPAY_HASH_IV)return reject('OTHER',{error:'diagnostic unavailable'},503);
   const params={MerchantID:env.ECPAY_MERCHANT_ID,MerchantTradeNo:row.merchant_trade_no,TimeStamp:Math.floor(Date.now()/1000)};
-  params.CheckMacValue=await mac(params,env);
+  try{params.CheckMacValue=await mac(params,env)}catch{return reject('OTHER',{error:'diagnostic unavailable'},503)}
   try {
+    log('DIAG_PROVIDER_QUERY','STARTED');
     const response=await providerFetch(target,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params)});
     const contentType=response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()||'';
     const safeType=['application/json','text/html','text/plain','application/x-www-form-urlencoded'].includes(contentType)?contentType:'unexpected';
@@ -66,16 +80,16 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
     const message=diagnosticMessage(result?.RtnMsg);
     const info={providerHttpStatus:response.status,providerContentType:safeType,rtnCode:integer(result?.RtnCode),rtnMsg:message,parseFailure:!result,networkFailure:false,timeout:false,orderNotFound:response.ok&&message==='ORDER_NOT_FOUND'};
     const classification=!response.ok?'HTTP_ERROR':!result?'PARSE_ERROR':safeType==='unexpected'?'CONTENT_TYPE_ERROR':message==='ORDER_NOT_FOUND'?'ORDER_NOT_FOUND':message==='MAC_ERROR'?'MAC_ERROR':message==='PARAMETER_ERROR'?'PARAMETER_ERROR':'PROVIDER_RESPONSE';
-    console.log('stage provider diagnostic',{merchantTradeNo:row.merchant_trade_no,classification,...info});
     const safe=response.ok&&safeType!=='unexpected'&&result?safeProviderResult(result,row,env):emptyResult();
     if(info.orderNotFound){safe.providerOrderFound=false;safe.recurringContract='NOT FOUND';}
+    log('DIAG_PROVIDER_RESULT',safe.providerOrderFound===true?'SUCCESS':classification==='PROVIDER_RESPONSE'?'UNKNOWN':classification,{...info,providerOrderFound:safe.providerOrderFound});
     // Official query response is unsigned: only fixed HTTPS, no redirects,
     // strict contract correlation, and an explicit response allowlist.
     return reply({...safe,...info,classification},200,env);
   }catch(error){
     const timeout=error?.name==='TimeoutError'||error?.name==='AbortError';
     const info={providerHttpStatus:null,providerContentType:null,rtnCode:null,rtnMsg:null,parseFailure:false,networkFailure:!timeout,timeout,orderNotFound:false,classification:timeout?'TIMEOUT':'NETWORK_ERROR',...safeNetworkError(error)};
-    console.log('stage provider diagnostic',{merchantTradeNo:row.merchant_trade_no,...info});
+    log('DIAG_PROVIDER_RESULT',info.classification,info);
     return reply({...emptyResult(),...info},200,env);
   }
 }

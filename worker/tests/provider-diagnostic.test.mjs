@@ -8,9 +8,9 @@ for(const authorization of [null,'Bearer forged.token.signature']) {
   assert.equal((await worker.fetch(req,env)).status,401);
 }
 let queries=0,calls=0;
-const row={merchant_trade_no:'owned-trade',amount:190,status:'pending'};
+const row={firebase_uid:'owner',merchant_trade_no:'owned-trade',amount:190,status:'pending'};
 const provider={MerchantID:'fixture',MerchantTradeNo:'owned-trade',PeriodAmount:190,PeriodType:'M',Frequency:1,ExecTimes:99,RtnCode:1,amount:190,process_date:'2026/09/30 13:33:05',TotalSuccessTimes:1,TotalSuccessAmount:190,ExecStatus:'1',Card6No:'secret-card',CheckMacValue:'secret-mac',ExecLog:[{RtnCode:1,amount:190,process_date:'2026/09/30 13:33:05',TradeNo:'ref',auth_code:'secret-auth'}]};
-env.DB={prepare(sql){assert.match(sql,/^SELECT .* WHERE id=\? AND firebase_uid=\?$/);queries++;return {bind(id,uid){assert.equal(id,'sub_fixture');return {first:async()=>uid==='owner'?row:null}}}}};
+env.DB={prepare(sql){assert.match(sql,/^SELECT .* WHERE id=\?$/);queries++;return {bind(id){assert.equal(id,'sub_fixture');return {first:async()=>row}}}}};
 const deps={verify:async()=>({uid:'owner'}),mac:async params=>{assert.equal(params.MerchantTradeNo,'owned-trade');return 'fixture-mac'},reply:(body,status)=>new Response(JSON.stringify(body),{status}),limiter:()=>null,providerFetch:async(target,options)=>{calls++;assert.equal(target,'https://payment-stage.ecpay.com.tw/Cashier/QueryCreditCardPeriodInfo');assert.equal(options.redirect,'error');assert.equal(new URLSearchParams(options.body).get('Action'),null);return Response.json(provider)}};
 assert.equal((await providerDiagnostic(new Request(url),{...env,ECPAY_ENV:'production'},deps)).status,404);
 assert.equal(queries,0);
@@ -51,3 +51,28 @@ for(const [message,category] of [['DNS lookup failed','DNS_FAILURE'],['TLS certi
 assert.equal(safeNetworkError({name:'secret-token',message:'secret-token',stack:'secret-stack'}).exceptionName,'OtherError');
 const hostile=await providerDiagnostic(new Request(url+'?subscription_id=other'),env,deps);assert.equal(hostile.status,400);
 console.log('target ownership and sanitized network tests passed');
+const captured=[];const originalLog=console.log;
+console.log=(...args)=>captured.push(args);
+try {
+  const run=async(e=env,d=deps)=>{captured.length=0;const response=await providerDiagnostic(new Request(url),e,d);return {status:response.status,logs:captured.map(x=>x[1])}};
+  for(const [e,d,reason] of [
+    [{...env,ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID:undefined},deps,'TARGET_SECRET_MISSING'],
+    [env,{...deps,verify:async()=>{throw Error('secret-token')}},'FIREBASE_AUTH_FAILED'],
+    [{...env,DB:{prepare:()=>({bind:()=>({first:async()=>null})})}},deps,'TARGET_NOT_FOUND'],
+    [env,{...deps,verify:async()=>({uid:'different-secret-uid'})},'UID_MISMATCH'],
+    [{...env,DB:{prepare:()=>({bind:()=>({first:async()=>({...row,status:'active'})})})}},deps,'STATUS_NOT_PENDING'],
+    [{...env,DB:{prepare:()=>{throw Error('secret-db-message')}}},deps,'OTHER'],
+    [env,{...deps,mac:async()=>{throw Error('secret-key')}},'OTHER'],
+    [env,{...deps,limiter:()=>new Response('{}',{status:429})},'OTHER']
+  ]) {
+    const {logs}=await run(e,d);assert.ok(logs.some(x=>x.checkpoint==='DIAG_REJECT'&&x.state===reason));
+    assert.ok(logs.some(x=>x.checkpoint==='DIAG_PROVIDER_QUERY'&&x.state==='NOT_STARTED'));
+    assert.equal(new Set(logs.map(x=>x.requestId)).size,1);
+    for(const secret of ['secret-token','secret-key','secret-db-message','different-secret-uid','owned-trade','sub_fixture','fixture-key','fixture-iv'])assert.ok(!JSON.stringify(logs).includes(secret));
+  }
+  const valid=await run();assert.ok(valid.logs.some(x=>x.checkpoint==='DIAG_PROVIDER_QUERY'&&x.state==='STARTED'));
+  assert.ok(valid.logs.some(x=>x.checkpoint==='DIAG_REQUEST_RECEIVED'));
+  assert.ok(valid.logs.some(x=>x.checkpoint==='DIAG_UID_OWNERSHIP'&&x.state==='MATCH'));
+  const production=await run({...env,ECPAY_ENV:'production'});assert.equal(production.status,404);assert.equal(production.logs.length,0);
+} finally {console.log=originalLog}
+console.log('checkpoint rejection coverage and sensitive-log tests passed');
