@@ -1,3 +1,4 @@
+import { consumeCancelResponseLoss } from './stage-fault.js';
 const PENDING_MS = 120000;
 export function cancellationState(row, now = Date.now()) {
   if (row.cancel_at_period_end) return 'confirmed';
@@ -50,6 +51,7 @@ export async function processCancellation(req, env, profile, deps, reconcile = f
       // Official query response has no CheckMacValue; trust only the fixed HTTPS endpoint,
       // reject redirects and correlate every contract field before using ExecStatus.
       const provider=queryState(result,row,env);
+      console.log('cancellation provider queried',{subscriptionId:row.id,providerStatus:provider});
       if(provider==='unknown')return markUnknown();
       state=provider==='cancelled'?'confirmed':'none';
       const sql=provider==='cancelled'
@@ -68,8 +70,12 @@ export async function processCancellation(req, env, profile, deps, reconcile = f
   params.CheckMacValue=await mac(params,env);
   try {
     const res=await fetch(endpoint(env),{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params)});
+    const text=await res.text();
+    // Exact fault boundary: real provider response bytes received, before parsing,
+    // authenticity/result decisions or any confirmed subscription write.
+    if(await consumeCancelResponseLoss(env,row.id,requestId))return markUnknown();
     if(!res.ok)return markUnknown();
-    const text=await res.text();let result;
+    let result;
     try{result=JSON.parse(text);}catch{result=Object.fromEntries(new URLSearchParams(text));}
     if(!result || result.MerchantID!==env.ECPAY_MERCHANT_ID || result.MerchantTradeNo!==row.merchant_trade_no ||
        !result.CheckMacValue || result.CheckMacValue!==await mac(result,env))return markUnknown();
