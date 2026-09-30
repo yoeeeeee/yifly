@@ -71,8 +71,19 @@ try {
     for(const secret of ['secret-token','secret-key','secret-db-message','different-secret-uid','owned-trade','sub_fixture','fixture-key','fixture-iv'])assert.ok(!JSON.stringify(logs).includes(secret));
   }
   const valid=await run();assert.ok(valid.logs.some(x=>x.checkpoint==='DIAG_PROVIDER_QUERY'&&x.state==='STARTED'));
+  for(const checkpoint of ['QUERY_BUILD_START','QUERY_BUILD_OK','QUERY_SIGN_START','QUERY_SIGN_OK','QUERY_BODY_BUILD_START','QUERY_BODY_BUILD_OK','FETCH_START','FETCH_RESPONSE_RECEIVED'])assert.ok(valid.logs.some(x=>x.checkpoint===checkpoint));
+  const fetchThrow=await run(env,{...deps,providerFetch:async()=>{throw new TypeError('secret-token redirect failed')}});
+  assert.ok(fetchThrow.logs.some(x=>x.checkpoint==='FETCH_THROW'&&x.networkCategory==='REDIRECT_FAILURE'));
+  assert.ok(!JSON.stringify(fetchThrow.logs).includes('secret-token'));
+  const timed=await run(env,{...deps,providerFetch:async()=>{throw new DOMException('secret-timeout','TimeoutError')}});
+  assert.ok(timed.logs.some(x=>x.checkpoint==='FETCH_THROW'&&x.networkCategory==='TIMEOUT'));
   assert.ok(valid.logs.some(x=>x.checkpoint==='DIAG_REQUEST_RECEIVED'));
   assert.ok(valid.logs.some(x=>x.checkpoint==='DIAG_UID_OWNERSHIP'&&x.state==='MATCH'));
   const production=await run({...env,ECPAY_ENV:'production'});assert.equal(production.status,404);assert.equal(production.logs.length,0);
 } finally {console.log=originalLog}
 console.log('checkpoint rejection coverage and sensitive-log tests passed');
+for(const [message,category] of [['Failed to parse URL','INVALID_URL'],['Invalid header value token=secret','INVALID_HEADER'],['Invalid request body secret-card','INVALID_REQUEST_BODY'],['Redirect failure Bearer secret','REDIRECT_FAILURE'],['Unsupported operation HashKey=secret','UNSUPPORTED_OPERATION']]) {
+  assert.equal(safeNetworkError(new TypeError(message)).networkCategory,category);
+  assert.ok(!JSON.stringify(safeNetworkError(new TypeError(message))).includes('secret'));
+}
+console.log('fetch construction phases and safe TypeError tests passed');

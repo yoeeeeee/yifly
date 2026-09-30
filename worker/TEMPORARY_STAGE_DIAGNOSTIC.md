@@ -33,3 +33,7 @@ Stage requests have an ephemeral request ID on every checkpoint and rejection lo
 No UID, subscription ID, MerchantTradeNo, TradeNo, request payload or credentials
 are logged. Non-Stage is rejected as NOT_STAGE (HTTP 404) silently, because logging
 is strictly Stage-only. Stage early returns include exact safe rejection reason.
+Query construction, signing, body/Request validation, outbound fetch and response
+reading have separate checkpoints. TypeError messages are never echoed, only
+allowlisted categories. Redirect error remains enabled; no credentialed redirect
+is followed. Body is a fresh serialized form string. No connectivity endpoint.

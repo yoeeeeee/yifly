@@ -10,7 +10,13 @@ export function safeNetworkError(error) {
     /tls|ssl|certificate/.test(message)||code.startsWith('ERR_TLS_')?'TLS_FAILURE':
     /connection reset|econnreset/.test(message)||code==='ECONNRESET'?'CONNECTION_RESET':
     /connection refused|econnrefused/.test(message)||code==='ECONNREFUSED'?'CONNECTION_REFUSED':
-    /invalid url|url is invalid/.test(message)?'INVALID_URL':
+    /invalid url|url is invalid|parse url/.test(message)?'INVALID_URL':
+    /invalid header|header name|header value/.test(message)?'INVALID_HEADER':
+    /request body|body type|body.*used|body.*locked/.test(message)?'INVALID_REQUEST_BODY':
+    /redirect/.test(message)?'REDIRECT_FAILURE':
+    /unsupported|not supported|not implemented/.test(message)?'UNSUPPORTED_OPERATION':
+    /illegal invocation|incompatible receiver/.test(message)?'INVALID_INVOCATION':
+    /network connection lost|connection closed/.test(message)?'CONNECTION_LOST':
     /fetch failed|failed to fetch/.test(message)?'FETCH_FAILED':'OTHER_NETWORK_FAILURE';
   return {exceptionName:name,networkCategory:category};
 }
@@ -69,11 +75,31 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
   log('DIAG_SUBSCRIPTION_STATUS',row.status==='pending'?'PENDING':'OTHER');
   if(row.status!=='pending')return reject('STATUS_NOT_PENDING',{error:'diagnostic target is not pending'},409);
   if(!env.ECPAY_MERCHANT_ID||!env.ECPAY_HASH_KEY||!env.ECPAY_HASH_IV)return reject('OTHER',{error:'diagnostic unavailable'},503);
-  const params={MerchantID:env.ECPAY_MERCHANT_ID,MerchantTradeNo:row.merchant_trade_no,TimeStamp:Math.floor(Date.now()/1000)};
-  try{params.CheckMacValue=await mac(params,env)}catch{return reject('OTHER',{error:'diagnostic unavailable'},503)}
+  let params,options;
+  const preparationFailure=(error,stage)=>{log('QUERY_PREPARATION_THROW',stage,safeNetworkError(error));return reject('OTHER',{error:'diagnostic unavailable'},503)};
+  log('QUERY_BUILD_START','STARTED');
+  try {
+    const parsed=new URL(target);
+    if(parsed.protocol!=='https:'||parsed.hostname!=='payment-stage.ecpay.com.tw'||parsed.pathname!=='/Cashier/QueryCreditCardPeriodInfo'||parsed.search||parsed.hash||target.trim()!==target)throw new TypeError('Invalid URL');
+    params={MerchantID:env.ECPAY_MERCHANT_ID,MerchantTradeNo:row.merchant_trade_no,TimeStamp:Math.floor(Date.now()/1000)};
+    log('QUERY_BUILD_OK','OK');
+  }catch(error){return preparationFailure(error,'QUERY_BUILD')}
+  log('QUERY_SIGN_START','STARTED');
+  try{params.CheckMacValue=await mac(params,env);log('QUERY_SIGN_OK','OK')}catch(error){return preparationFailure(error,'QUERY_SIGN')}
+  log('QUERY_BODY_BUILD_START','STARTED');
+  try {
+    options={method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()};
+    // Validate Fetch inputs locally before the outbound call. Fresh body every time.
+    new Request(target,options);
+    log('QUERY_BODY_BUILD_OK','OK');
+  }catch(error){return preparationFailure(error,'QUERY_BODY_BUILD')}
+  let fetchStage='FETCH';
   try {
     log('DIAG_PROVIDER_QUERY','STARTED');
-    const response=await providerFetch(target,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params)});
+    log('FETCH_START','STARTED');
+    const response=await providerFetch(target,options);
+    log('FETCH_RESPONSE_RECEIVED','RECEIVED',{providerHttpStatus:response.status});
+    fetchStage='RESPONSE_READ';
     const contentType=response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()||'';
     const safeType=['application/json','text/html','text/plain','application/x-www-form-urlencoded'].includes(contentType)?contentType:'unexpected';
     const result=parseDiagnostic((await response.text()).slice(0,65536));
@@ -87,6 +113,7 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
     // strict contract correlation, and an explicit response allowlist.
     return reply({...safe,...info,classification},200,env);
   }catch(error){
+    log(fetchStage==='FETCH'?'FETCH_THROW':'RESPONSE_READ_THROW','FAILED',safeNetworkError(error));
     const timeout=error?.name==='TimeoutError'||error?.name==='AbortError';
     const info={providerHttpStatus:null,providerContentType:null,rtnCode:null,rtnMsg:null,parseFailure:false,networkFailure:!timeout,timeout,orderNotFound:false,classification:timeout?'TIMEOUT':'NETWORK_ERROR',...safeNetworkError(error)};
     log('DIAG_PROVIDER_RESULT',info.classification,info);
