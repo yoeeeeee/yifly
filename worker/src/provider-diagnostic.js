@@ -87,12 +87,27 @@ export async function providerDiagnostic(req,env,{verify,mac,reply,limiter,provi
   log('QUERY_SIGN_START','STARTED');
   try{params.CheckMacValue=await mac(params,env);log('QUERY_SIGN_OK','OK')}catch(error){return preparationFailure(error,'QUERY_SIGN')}
   log('QUERY_BODY_BUILD_START','STARTED');
+  let constructionStage='BODY_PARAMS_CREATE';
   try {
-    options={method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()};
+    log('BODY_PARAMS_CREATE_START','STARTED');
+    const form=new URLSearchParams();log('BODY_PARAMS_CREATE_OK','OK');
+    constructionStage='BODY_PARAMS_APPEND';log('BODY_PARAMS_APPEND_START','STARTED');
+    for(const key of ['MerchantID','MerchantTradeNo','TimeStamp','CheckMacValue']) {
+      if(params[key]===undefined||params[key]===null)throw new TypeError('Invalid request body');
+      form.set(key,String(params[key]));
+    }
+    log('BODY_PARAMS_APPEND_OK','OK');
+    constructionStage='BODY_SERIALIZE';log('BODY_SERIALIZE_START','STARTED');
+    const body=form.toString();log('BODY_SERIALIZE_OK','OK');log('QUERY_BODY_BUILD_OK','OK');
+    constructionStage='FETCH_OPTIONS_BUILD';log('FETCH_OPTIONS_BUILD_START','STARTED');
+    // workerd rejects redirect:error at Request construction; manual never follows.
+    options={method:'POST',redirect:'manual',signal:AbortSignal.timeout(15000),headers:{'content-type':'application/x-www-form-urlencoded'},body};
+    log('FETCH_OPTIONS_BUILD_OK','OK');
+    constructionStage='REQUEST_CONSTRUCTION';log('REQUEST_CONSTRUCTION_START','STARTED');
     // Validate Fetch inputs locally before the outbound call. Fresh body every time.
     new Request(target,options);
-    log('QUERY_BODY_BUILD_OK','OK');
-  }catch(error){return preparationFailure(error,'QUERY_BODY_BUILD')}
+    log('REQUEST_CONSTRUCTION_OK','OK');
+  }catch(error){return preparationFailure(error,constructionStage)}
   let fetchStage='FETCH';
   try {
     log('DIAG_PROVIDER_QUERY','STARTED');

@@ -11,7 +11,7 @@ let queries=0,calls=0;
 const row={firebase_uid:'owner',merchant_trade_no:'owned-trade',amount:190,status:'pending'};
 const provider={MerchantID:'fixture',MerchantTradeNo:'owned-trade',PeriodAmount:190,PeriodType:'M',Frequency:1,ExecTimes:99,RtnCode:1,amount:190,process_date:'2026/09/30 13:33:05',TotalSuccessTimes:1,TotalSuccessAmount:190,ExecStatus:'1',Card6No:'secret-card',CheckMacValue:'secret-mac',ExecLog:[{RtnCode:1,amount:190,process_date:'2026/09/30 13:33:05',TradeNo:'ref',auth_code:'secret-auth'}]};
 env.DB={prepare(sql){assert.match(sql,/^SELECT .* WHERE id=\?$/);queries++;return {bind(id){assert.equal(id,'sub_fixture');return {first:async()=>row}}}}};
-const deps={verify:async()=>({uid:'owner'}),mac:async params=>{assert.equal(params.MerchantTradeNo,'owned-trade');return 'fixture-mac'},reply:(body,status)=>new Response(JSON.stringify(body),{status}),limiter:()=>null,providerFetch:async(target,options)=>{calls++;assert.equal(target,'https://payment-stage.ecpay.com.tw/Cashier/QueryCreditCardPeriodInfo');assert.equal(options.redirect,'error');assert.equal(new URLSearchParams(options.body).get('Action'),null);return Response.json(provider)}};
+const deps={verify:async()=>({uid:'owner'}),mac:async params=>{assert.equal(params.MerchantTradeNo,'owned-trade');return 'fixture-mac'},reply:(body,status)=>new Response(JSON.stringify(body),{status}),limiter:()=>null,providerFetch:async(target,options)=>{calls++;assert.equal(target,'https://payment-stage.ecpay.com.tw/Cashier/QueryCreditCardPeriodInfo');assert.equal(options.redirect,'manual');assert.equal(typeof options.body,'string');assert.equal(options.headers['content-type'],'application/x-www-form-urlencoded');const form=new URLSearchParams(options.body);assert.deepEqual([...form.keys()],['MerchantID','MerchantTradeNo','TimeStamp','CheckMacValue']);assert.ok(!options.body.includes('undefined'));assert.ok(!options.body.includes('null'));assert.equal(form.get('Action'),null);return Response.json(provider)}};
 assert.equal((await providerDiagnostic(new Request(url),{...env,ECPAY_ENV:'production'},deps)).status,404);
 assert.equal(queries,0);
 assert.equal((await providerDiagnostic(new Request(url),{...env,ECPAY_STAGE_DIAGNOSTIC_SUBSCRIPTION_ID:undefined},deps)).status,503);
@@ -32,6 +32,7 @@ for(const [body,type,status,expected] of [
   ['RtnCode=0&RtnMsg=parameter+error','application/x-www-form-urlencoded',200,'PARAMETER_ERROR'],
   ['0|CheckMacValue error','text/plain',200,'MAC_ERROR'],
   ['bad gateway','text/plain',502,'HTTP_ERROR'],
+  ['', 'text/html',302,'HTTP_ERROR'],
   [JSON.stringify(provider),'application/octet-stream',200,'CONTENT_TYPE_ERROR'],
   ['<html>secret-card secret-mac</html>','text/html',200,'PARSE_ERROR']
 ]) {
